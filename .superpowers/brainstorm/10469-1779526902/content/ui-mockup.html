@@ -1,0 +1,135 @@
+<h2>Agent 群聊界面 - UI 设计</h2>
+<p class="subtitle">深色主题 + Cyan 强调色，群聊模式，agent 作为群员</p>
+
+<div class="mockup">
+  <div class="mockup-header">主界面布局</div>
+  <div class="mockup-body" style="padding: 0;">
+    <div style="display: flex; height: 500px; font-family: var(--font-mono); font-size: 13px;">
+      <!-- 左侧边栏 -->
+      <div style="width: 200px; background: #0a0a0a; border-right: 1px solid #262626; display: flex; flex-direction: column;">
+        <!-- 群列表 -->
+        <div style="padding: 12px; border-bottom: 1px solid #262626;">
+          <div style="color: #71717a; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;">群列表</div>
+          <div style="padding: 8px; background: rgba(0,212,255,0.1); border-radius: 4px; color: #00d4ff; cursor: pointer; margin-bottom: 4px;">
+            <span style="color: #10b981;">●</span> 开发群
+          </div>
+          <div style="padding: 8px; color: #a1a1a1; cursor: pointer; margin-bottom: 4px;">
+            <span style="color: #71717a;">●</span> 测试群
+          </div>
+          <div style="padding: 8px; color: #a1a1a1; cursor: pointer;">
+            <span style="color: #71717a;">●</span> 文档群
+          </div>
+        </div>
+        <!-- 可用 Agent -->
+        <div style="padding: 12px; flex: 1; overflow: auto;">
+          <div style="color: #71717a; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;">可用 Agent</div>
+          <div style="padding: 6px 8px; color: #a1a1a1; font-size: 12px;">
+            <span style="color: #00d4ff;">●</span> sisyphus
+          </div>
+          <div style="padding: 6px 8px; color: #a1a1a1; font-size: 12px;">
+            <span style="color: #7c3aed;">●</span> hephaestus
+          </div>
+          <div style="padding: 6px 8px; color: #a1a1a1; font-size: 12px;">
+            <span style="color: #f59e0b;">●</span> prometheus
+          </div>
+          <div style="padding: 6px 8px; color: #a1a1a1; font-size: 12px;">
+            <span style="color: #10b981;">●</span> atlas
+          </div>
+        </div>
+        <!-- 新建群按钮 -->
+        <div style="padding: 12px; border-top: 1px solid #262626;">
+          <button style="width: 100%; padding: 8px; background: transparent; border: 1px solid #262626; color: #a1a1a1; border-radius: 4px; cursor: pointer; font-size: 12px;">
+            + 新建群
+          </button>
+        </div>
+      </div>
+      
+      <!-- 主聊天区域 -->
+      <div style="flex: 1; display: flex; flex-direction: column; background: #0a0a0a;">
+        <!-- 顶部栏 -->
+        <div style="padding: 12px 16px; border-bottom: 1px solid #262626; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <span style="color: #ededed; font-weight: 600;">开发群</span>
+            <span style="color: #71717a; font-size: 12px; margin-left: 8px;">4 成员</span>
+          </div>
+          <button style="padding: 4px 12px; background: transparent; border: 1px solid #262626; color: #a1a1a1; border-radius: 4px; cursor: pointer; font-size: 11px;">
+            成员列表
+          </button>
+        </div>
+        
+        <!-- 消息区域 -->
+        <div style="flex: 1; padding: 16px; overflow: auto;">
+          <!-- 用户消息 -->
+          <div style="margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; margin-bottom: 4px;">
+              <span style="color: #ededed; font-weight: 500;">🧑 你</span>
+              <span style="color: #71717a; font-size: 11px; margin-left: 8px;">14:32</span>
+            </div>
+            <div style="color: #a1a1a1; line-height: 1.5;">
+              <span style="color: #00d4ff; background: rgba(0,212,255,0.1); padding: 1px 4px; border-radius: 2px;">@sisyphus</span> 重构 auth 模块，<span style="color: #7c3aed; background: rgba(124,58,237,0.1); padding: 1px 4px; border-radius: 2px;">@hephaestus</span> 写对应的测试
+            </div>
+          </div>
+          
+          <!-- Sisyphus 响应 -->
+          <div style="margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; margin-bottom: 4px;">
+              <span style="color: #00d4ff; font-weight: 500;">🤖 Sisyphus</span>
+              <span style="color: #71717a; font-size: 11px; margin-left: 8px;">14:32</span>
+              <span style="color: #10b981; font-size: 11px; margin-left: 8px;">● 工作中</span>
+            </div>
+            <div style="background: #111111; border: 1px solid #262626; border-radius: 6px; padding: 12px; color: #a1a1a1; line-height: 1.6;">
+              <div style="margin-bottom: 8px;">正在分析 auth 模块结构...</div>
+              <div style="color: #ededed;">我已开始重构 auth 模块，当前进度:</div>
+              <div style="margin-left: 12px; color: #a1a1a1;">
+                - 拆分 auth.ts 为 3 个文件<br>
+                - 添加类型定义<br>
+                - 重写 JWT 验证逻辑<span style="animation: blink 1s infinite;">▌</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Hephaestus 响应 -->
+          <div style="margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; margin-bottom: 4px;">
+              <span style="color: #7c3aed; font-weight: 500;">🤖 Hephaestus</span>
+              <span style="color: #71717a; font-size: 11px; margin-left: 8px;">14:32</span>
+              <span style="color: #f59e0b; font-size: 11px; margin-left: 8px;">● 等待中</span>
+            </div>
+            <div style="color: #71717a; font-style: italic;">
+              等待 Sisyphus 完成后再生成测试...
+            </div>
+          </div>
+        </div>
+        
+        <!-- 输入区域 -->
+        <div style="padding: 12px 16px; border-top: 1px solid #262626;">
+          <div style="display: flex; gap: 8px;">
+            <div style="flex: 1; background: #111111; border: 1px solid #262626; border-radius: 6px; padding: 8px 12px; color: #a1a1a1;">
+              输入消息... <span style="color: #71717a;">@ 提及 agent</span>
+            </div>
+            <button style="padding: 8px 16px; background: #00d4ff; border: none; color: #0a0a0a; border-radius: 6px; cursor: pointer; font-weight: 500;">
+              发送
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  @keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+  }
+</style>
+
+<div class="section" style="margin-top: 24px;">
+  <h3>关键交互说明</h3>
+  <ul style="color: #a1a1a1; line-height: 1.8;">
+    <li><strong style="color: #ededed;">@mention</strong> - 输入 @ 弹出 agent 选择器，被选中的 agent 会收到消息</li>
+    <li><strong style="color: #ededed;">流式输出</strong> - agent 回复实时显示，带打字光标效果</li>
+    <li><strong style="color: #ededed;">状态指示</strong> - 工作中(绿)、等待中(黄)、空闲(灰)</li>
+    <li><strong style="color: #ededed;">中断机制</strong> - 工作中被新 @ 会中断当前任务</li>
+  </ul>
+</div>

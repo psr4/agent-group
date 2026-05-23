@@ -1,0 +1,27 @@
+{
+  "name": "opencode-web",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "opencode-web": "./bin/cli.js"
+  },
+  "scripts": {
+    "dev": "npx tsx src/index.ts",
+    "build": "cd web-client && npm run build",
+    "start": "npx tsx src/index.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.0.3",
+    "@opencode-ai/sdk": "^1.15.10",
+    "better-sqlite3": "^11.10.0",
+    "hono": "^4.12.22",
+    "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/ws": "^8.18.1",
+    "bun-types": "^1.1.0",
+    "tsx": "^4.22.3",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,4 @@
+{"type":"server-started","port":63865,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:63865","screen_dir":"/Volumes/Work/aichat/oh-my-openagent/.superpowers/brainstorm/10469-1779526902/content","state_dir":"/Volumes/Work/aichat/oh-my-openagent/.superpowers/brainstorm/10469-1779526902/state"}
+{"type":"screen-added","file":"/Volumes/Work/aichat/oh-my-openagent/.superpowers/brainstorm/10469-1779526902/content/ui-mockup.html"}
+{"type":"screen-added","file":"/Volumes/Work/aichat/oh-my-openagent/.superpowers/brainstorm/10469-1779526902/content/ui-mockup-light.html"}
+{"type":"server-stopped","reason":"idle timeout"}
