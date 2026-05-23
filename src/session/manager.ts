@@ -189,11 +189,18 @@ function buildPrompt(
   let prompt = `你是群聊中的 "${member.displayName}" agent。
 
 ## 群聊信息
-- 群内其他agent: ${memberList || '(无其他成员)'}
+- 群ID: ${member.groupId}
+- 项目路径: ${projectPath}
+- 群内其他成员: ${memberList || '(无其他成员)'}
 
 ## 重要规则
-- 你只能看到发给你的消息，你的回复会实时显示在群里但是其他人看不到此对话，各自独立工作
-- 你如果想和其他agent沟通, 通过<replay to="成员1,成员2,成员3" master="true">消息内容</replay> 来同时发送给 成员1,成员2,成员3,群主
+- 你只能看到发给你 (@${member.displayName}) 的消息
+- 其他 agent 看不到此对话，各自独立工作
+- 如果需要回复用户，使用 <replay master="true">消息内容</replay>
+- 如果需要和其他 agent 协作，使用 <replay to="成员名">消息内容</replay>
+- 如果要同时发给多个成员，使用 <replay to="成员1,成员2,成员3">消息内容</replay>
+- 可以同时使用 master 和 to，例如 <replay to="成员1,成员2" master="true">消息内容</replay>
+- 你的回复会实时显示在群里
 - 如果是其他 agent 给你分配任务，完成任务后用 <replay to="分配者名">回复内容</replay> 告知结果
 
 `
@@ -212,10 +219,8 @@ ${fromMember.displayName} 在群里 @了你：
 `
   }
   
-  prompt += `## 群主消息
-${content}
-
-请处理上述任务。`
+  prompt += `## 用户消息
+${content}`
 
   return prompt
 }
@@ -248,7 +253,7 @@ export async function sendToAgent(
     // 只有首次发送完整系统提示
     let prompt: string
     if (agentSession.initialized) {
-      // 后续消息只发送群主消息
+      // 后续消息只发送用户消息
       if (fromMember) {
         prompt = `${fromMember.displayName} 给你分配了任务：\n\n${content}`
       } else {
@@ -258,9 +263,6 @@ export async function sendToAgent(
       // 首次发送完整系统提示
       prompt = buildPrompt(member, content, projectPath, fromMember)
       agentSession.initialized = true
-      // 更新数据库
-      const dbInit = getDb()
-      updateMemberSession(dbInit, member.id, agentSession.sessionId, true)
     }
     
     console.log(`Sending prompt to ${member.displayName}:\n${prompt}`)
@@ -366,14 +368,14 @@ export async function sendToAgent(
     if (fullResponse) {
       const allMembers = listMembers(db, member.groupId)
       
-      // 匹配 <replay master="true">content</replay> - 发送给群主
+      // 匹配 <replay master="true">content</replay> - 发送给用户
       const masterRegex = /<replay\s+master="true">([\s\S]*?)<\/replay>/g
       let masterMatch: RegExpExecArray | null
       
       while ((masterMatch = masterRegex.exec(fullResponse)) !== null) {
         const replayContent = masterMatch[1].trim()
         console.log(`Found replay to master (user): ${replayContent.slice(0, 50)}...`)
-        // 群主的回复显示在群里，不需要额外处理
+        // 用户的回复显示在群里，不需要额外处理
       }
       
       // 匹配 <replay to="xxx">content</replay> - 发送给其他 agent
