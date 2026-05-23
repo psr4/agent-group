@@ -1,8 +1,14 @@
 import { Hono } from "hono"
 import { getDb } from "../db/index.js"
-import { createGroup, listGroups, getGroup, deleteGroup, addMember, removeMember, listMembers, updateMember, getMember, createMessage, listMessages } from "../db/queries.js"
+import { 
+  createGroup, listGroups, getGroup, deleteGroup, 
+  addMember, removeMember, listMembers, updateMember, getMember, 
+  createMessage, listMessages,
+  clearGroupMessages, clearGroupSessions, deleteGroupMembers, deleteGroupMessages
+} from "../db/queries.js"
 import { validateString, validateProjectPath, validateArray, validateOneOf } from "../utils/validation.js"
 import { NotFoundError, BadRequestError } from "../utils/errors.js"
+import { closeSession, closeGroupSessions } from "../session/manager.js"
 
 const app = new Hono()
 
@@ -41,7 +47,15 @@ app.get("/:id", (c) => {
 app.delete("/:id", (c) => {
   const id = c.req.param("id")
   const db = getDb()
+  
+  // 先关闭内存中的 sessions
+  closeGroupSessions(id)
+  
+  // 删除数据库数据
+  deleteGroupMessages(db, id)
+  deleteGroupMembers(db, id)
   deleteGroup(db, id)
+  
   return c.json({ success: true })
 })
 
@@ -103,6 +117,10 @@ app.post("/:id/members", async (c) => {
 
 app.delete("/:id/members/:memberId", (c) => {
   const memberId = c.req.param("memberId")
+  
+  // 关闭内存中的 session
+  closeSession(memberId)
+  
   const db = getDb()
   removeMember(db, memberId)
   return c.json({ success: true })
@@ -177,6 +195,22 @@ app.post("/:id/messages", async (c) => {
   const db = getDb()
   const message = createMessage(db, groupId, senderType, senderName, content, mentions)
   return c.json(message, 201)
+})
+
+app.delete("/:id/messages", (c) => {
+  const groupId = c.req.param("id")
+  const db = getDb()
+  
+  // 清空消息
+  clearGroupMessages(db, groupId)
+  
+  // 重置所有成员的 session
+  clearGroupSessions(db, groupId)
+  
+  // 关闭内存中的 sessions
+  closeGroupSessions(groupId)
+  
+  return c.json({ success: true })
 })
 
 export default app

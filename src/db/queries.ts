@@ -159,12 +159,32 @@ export function updateMember(db: Database.Database, memberId: string, displayNam
   `).run(displayName || null, rolePrompt || null, model || null, bubbleColor || null, memberId)
 }
 
-export function updateMemberSession(db: Database.Database, memberId: string, sessionId: string, initialized: boolean): void {
+export function updateMemberSession(db: Database.Database, memberId: string, sessionId: string | null, initialized: boolean): void {
   db.prepare(`
     UPDATE group_members 
     SET session_id = ?, session_initialized = ?
     WHERE id = ?
   `).run(sessionId, initialized ? 1 : 0, memberId)
+}
+
+export function clearGroupMessages(db: Database.Database, groupId: string): void {
+  db.prepare("DELETE FROM messages WHERE group_id = ?").run(groupId)
+}
+
+export function clearGroupSessions(db: Database.Database, groupId: string): void {
+  db.prepare(`
+    UPDATE group_members 
+    SET session_id = NULL, session_initialized = 0, status = 'idle'
+    WHERE group_id = ?
+  `).run(groupId)
+}
+
+export function deleteGroupMembers(db: Database.Database, groupId: string): void {
+  db.prepare("DELETE FROM group_members WHERE group_id = ?").run(groupId)
+}
+
+export function deleteGroupMessages(db: Database.Database, groupId: string): void {
+  db.prepare("DELETE FROM messages WHERE group_id = ?").run(groupId)
 }
 
 export function createMessage(

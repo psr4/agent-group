@@ -128,6 +128,16 @@ function AppContent() {
     }
   }
 
+  const handleClearMessages = async (groupId: string) => {
+    try {
+      await fetch(`/api/groups/${groupId}/messages`, { method: "DELETE" })
+      setMessages([])
+      setAgentStatus({})
+    } catch {
+      showError("清空消息失败")
+    }
+  }
+
   const handleUpdateGroup = async (id: string, name: string, projectPath: string) => {
     try {
       const res = await fetch(`/api/groups/${id}`, {
@@ -260,6 +270,7 @@ function AppContent() {
         onCreateGroup={() => setShowCreateModal(true)}
         onDeleteGroup={handleDeleteGroup}
         onUpdateGroup={handleUpdateGroup}
+        onClearMessages={handleClearMessages}
         members={members}
         agents={agents}
         models={models}

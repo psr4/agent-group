@@ -8,6 +8,7 @@ type Props = {
   onCreateGroup: () => void
   onDeleteGroup: (id: string) => void
   onUpdateGroup: (id: string, name: string, projectPath: string) => void
+  onClearMessages: (groupId: string) => void
   members: GroupMember[]
   agents: Agent[]
   models: Model[]
@@ -25,6 +26,7 @@ export default function RightPanel({
   onCreateGroup,
   onDeleteGroup,
   onUpdateGroup,
+  onClearMessages,
   members,
   agents,
   models,
@@ -217,6 +219,24 @@ export default function RightPanel({
                   }}
                 >
                   编辑
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (confirm(`确定清空群 "${group.name}" 的所有消息?`)) {
+                      onClearMessages(group.id)
+                    }
+                  }}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "#f59e0b",
+                    cursor: "pointer",
+                    padding: "2px 6px",
+                    fontSize: 11,
+                  }}
+                >
+                  清空
                 </button>
                 <button
                   onClick={(e) => {
