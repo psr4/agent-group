@@ -263,6 +263,9 @@ export async function sendToAgent(
       // 首次发送完整系统提示
       prompt = buildPrompt(member, content, projectPath, fromMember)
       agentSession.initialized = true
+      // 更新数据库
+      const dbInit = getDb()
+      updateMemberSession(dbInit, member.id, agentSession.sessionId, true)
     }
     
     console.log(`Sending prompt to ${member.displayName}:\n${prompt}`)
