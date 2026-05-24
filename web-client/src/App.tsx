@@ -76,7 +76,12 @@ function AppContent() {
     if (selectedGroupId) {
       fetch(`/api/groups/${selectedGroupId}/messages`)
         .then((res) => res.json())
-        .then(setMessages)
+        .then((data) => {
+          setMessages(data)
+          setTimeout(() => {
+            messagesEndRef.current?.scrollIntoView({ behavior: "auto" })
+          }, 100)
+        })
         .catch(() => showError("获取消息失败"))
       
       fetch(`/api/groups/${selectedGroupId}/members`)

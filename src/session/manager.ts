@@ -9,7 +9,8 @@ import {
   isMessagePartUpdatedEvent, 
   isSessionErrorEvent, 
   getSessionError,
-  getMessageText 
+  getMessageText,
+  getMessageId
 } from "./events.js"
 
 type AgentSession = {
@@ -22,7 +23,6 @@ type AgentSession = {
   abortController: AbortController
   status: "idle" | "working" | "error"
   initialized: boolean
-  lastActivity: number
 }
 
 type OpenCodeClient = Awaited<ReturnType<typeof createOpencode>>["client"]
@@ -30,23 +30,6 @@ type OpenCodeClient = Awaited<ReturnType<typeof createOpencode>>["client"]
 const sessions = new Map<string, AgentSession>()
 const clients = new Map<string, { client: OpenCodeClient; abortController: AbortController }>()
 let broadcastFn: ((groupId: string, message: WsMessage) => void) | null = null
-
-const SESSION_TIMEOUT_MS = 30 * 60 * 1000
-const CLEANUP_INTERVAL_MS = 5 * 60 * 1000
-
-function startCleanupTimer(): void {
-  setInterval(() => {
-    const now = Date.now()
-    for (const [memberId, session] of sessions) {
-      if (session.status === "idle" && now - session.lastActivity > SESSION_TIMEOUT_MS) {
-        console.log(`Cleaning up idle session for ${session.displayName}`)
-        closeSession(memberId)
-      }
-    }
-  }, CLEANUP_INTERVAL_MS).unref()
-}
-
-startCleanupTimer()
 
 export function setBroadcast(fn: (groupId: string, message: WsMessage) => void): void {
   broadcastFn = fn
@@ -62,40 +45,66 @@ export async function getOrCreateSession(
   member: GroupMember,
   projectPath: string
 ): Promise<AgentSession> {
+  console.log(`getOrCreateSession called: member.id=${member.id}, displayName=${member.displayName}`)
+  
   const existing = sessions.get(member.id)
   
-  console.log(`getOrCreateSession: member.id=${member.id}, existing=${existing ? 'yes' : 'no'}, sessions.size=${sessions.size}`)
-  
   if (existing) {
-    console.log(`Reusing existing session for ${member.displayName}`)
+    console.log(`Reusing existing session for ${member.displayName}, sessionId=${existing.sessionId}`)
     return existing
   }
   
-  // 检查数据库中是否有已保存的 session
   const db = getDb()
   const dbMember = getMember(db, member.id)
   const savedSessionId = dbMember?.sessionId
   const wasInitialized = dbMember?.sessionInitialized ?? false
   
-  // 如果有保存的 session，需要重新创建 client 但保留 session 上下文信息
-  // 由于 OpenCode client 不能跨进程复用，我们只保留 initialized 状态
-  
   const abortController = new AbortController()
   
-  console.log(`Creating OpenCode session for ${member.displayName} (${member.agentName}), wasInitialized=${wasInitialized}`)
-  
+  // 创建新的 OpenCode client
   const { client } = await createOpencode({
     signal: abortController.signal,
     port: 0,
     hostname: "127.0.0.1",
   })
   
-  const sessionRes = await client.session.create({
-    query: { directory: projectPath },
-  })
+  // 尝试复用已有的 session
+  let sessionId: string
+  let initialized = wasInitialized
   
-  if (!sessionRes.data) {
-    throw new Error("Failed to create session")
+  if (savedSessionId) {
+    try {
+      console.log(`Trying to reuse saved session: ${savedSessionId}`)
+      const sessionRes = await client.session.get({
+        path: { id: savedSessionId }
+      })
+      if (sessionRes.data) {
+        sessionId = savedSessionId
+        console.log(`Reused existing OpenCode session: ${sessionId}`)
+      } else {
+        throw new Error("Session not found")
+      }
+    } catch (e) {
+      console.log(`Failed to reuse session ${savedSessionId}, creating new one`)
+      const sessionRes = await client.session.create({
+        query: { directory: projectPath },
+      })
+      if (!sessionRes.data) {
+        throw new Error("Failed to create session")
+      }
+      sessionId = sessionRes.data.id
+      initialized = false
+    }
+  } else {
+    console.log(`Creating new OpenCode session for ${member.displayName}`)
+    const sessionRes = await client.session.create({
+      query: { directory: projectPath },
+    })
+    if (!sessionRes.data) {
+      throw new Error("Failed to create session")
+    }
+    sessionId = sessionRes.data.id
+    initialized = false
   }
   
   const agentSession: AgentSession = {
@@ -103,21 +112,19 @@ export async function getOrCreateSession(
     groupId: member.groupId,
     agentName: member.agentName,
     displayName: member.displayName,
-    sessionId: sessionRes.data.id,
+    sessionId,
     client,
     abortController,
     status: "idle",
-    initialized: wasInitialized, // 从数据库恢复 initialized 状态
-    lastActivity: Date.now(),
+    initialized,
   }
   
   sessions.set(member.id, agentSession)
   
-  // 更新数据库中的 session_id
-  updateMemberSession(db, member.id, sessionRes.data.id, wasInitialized)
+  updateMemberSession(db, member.id, sessionId, initialized)
   updateMemberStatus(db, member.id, "idle")
   
-  console.log(`Session created: ${sessionRes.data.id} for ${member.displayName}, initialized=${wasInitialized}`)
+  console.log(`Session ready: ${sessionId} for ${member.displayName}, initialized=${initialized}`)
   
   return agentSession
 }
@@ -130,7 +137,6 @@ export function setSessionStatus(memberId: string, status: "idle" | "working" | 
   const session = sessions.get(memberId)
   if (session) {
     session.status = status
-    session.lastActivity = Date.now()
     const db = getDb()
     updateMemberStatus(db, memberId, status)
   }
@@ -273,6 +279,9 @@ export async function sendToAgent(
     const events = await agentSession.client.global.event()
     
     let fullResponse = ""
+    let allResponses: string[] = []
+    let userMessageId: string | null = null
+    let assistantMessages: string[] = []
     let done = false
     let doneResolve: () => void
     const donePromise = new Promise<void>((resolve) => {
@@ -297,16 +306,38 @@ export async function sendToAgent(
           
           if (isMessagePartUpdatedEvent(globalEvent, agentSession.sessionId)) {
             const text = getMessageText(globalEvent)
-            if (text) {
-              fullResponse = text
-              broadcast(member.groupId, {
-                type: "agent_message",
-                groupId: member.groupId,
-                memberId: member.id,
-                agentName: member.displayName,
-                content: fullResponse,
-              })
+            const messageId = getMessageId(globalEvent)
+            
+            if (!text) continue
+            
+            // 跳过用户消息（text 等于 prompt 的那条）
+            if (text === prompt && !userMessageId) {
+              userMessageId = messageId || "unknown"
+              console.log(`Skipping user message part, messageId=${userMessageId}`)
+              continue
             }
+            
+            // 跳过和用户消息相同 messageId 的内容
+            if (messageId === userMessageId) {
+              continue
+            }
+            
+            // 这是 assistant 的回复
+            // 累积所有 assistant 消息
+            if (!assistantMessages.includes(messageId || "unknown")) {
+              assistantMessages.push(messageId || "unknown")
+              console.log(`New assistant message part, messageId=${messageId}`)
+              allResponses.push(text)
+            }
+            
+            fullResponse = text
+            broadcast(member.groupId, {
+              type: "agent_message",
+              groupId: member.groupId,
+              memberId: member.id,
+              agentName: member.displayName,
+              content: fullResponse,
+            })
           }
           
           if (isSessionErrorEvent(globalEvent, agentSession.sessionId)) {
@@ -357,54 +388,59 @@ export async function sendToAgent(
     setSessionStatus(memberId, "idle")
     broadcast(member.groupId, { type: "agent_status", groupId: member.groupId, memberId: member.id, agentName: member.displayName, status: "idle" })
     
-    // 保存 agent 消息到数据库
-    if (fullResponse) {
+    // 保存所有 agent 消息到数据库
+    if (allResponses.length > 0) {
+      const dbSave = getDb()
+      for (const response of allResponses) {
+        createMessage(dbSave, member.groupId, "agent", member.displayName, response, [])
+      }
+      console.log(`Saved ${allResponses.length} agent messages from ${member.displayName}`)
+    } else if (fullResponse) {
       const dbSave = getDb()
       createMessage(dbSave, member.groupId, "agent", member.displayName, fullResponse, [])
       console.log(`Saved agent message from ${member.displayName}:`)
       console.log(fullResponse)
     } else {
-      console.log(`No fullResponse to save for ${member.displayName}`)
+      console.log(`No response to save for ${member.displayName}`)
     }
     
     // 解析 agent 回复中的 <replay> 标签
-    if (fullResponse) {
+    // 从所有消息中查找 replay 标签
+    const replaySource = allResponses.length > 0 ? allResponses.join("\n") : fullResponse
+    if (replaySource) {
       const allMembers = listMembers(db, member.groupId)
       
-      // 匹配 <replay master="true">content</replay> - 发送给用户
-      const masterRegex = /<replay\s+master="true">([\s\S]*?)<\/replay>/g
-      let masterMatch: RegExpExecArray | null
-      
-      while ((masterMatch = masterRegex.exec(fullResponse)) !== null) {
-        const replayContent = masterMatch[1].trim()
-        console.log(`Found replay to master (user): ${replayContent.slice(0, 50)}...`)
-        // 用户的回复显示在群里，不需要额外处理
-      }
-      
-      // 匹配 <replay to="xxx">content</replay> - 发送给其他 agent
-      const replayRegex = /<replay\s+to="([^"]+)">([\s\S]*?)<\/replay>/g
+      // 匹配所有 <replay> 标签，支持任意属性顺序
+      // 格式: <replay ...>content</replay>
+      const replayRegex = /<replay\s+([^>]*)>([\s\S]*?)<\/replay>/g
       let match: RegExpExecArray | null
       
-      while ((match = replayRegex.exec(fullResponse)) !== null) {
-        const targetName = match[1]
+      while ((match = replayRegex.exec(replaySource)) !== null) {
+        const attrs = match[1]
         const replayContent = match[2].trim()
         
-        console.log(`Found replay to: ${targetName}`)
+        // 解析属性
+        const toMatch = attrs.match(/to="([^"]+)"/)
+        const isMaster = attrs.includes('master="true"')
+        const targetNames = toMatch ? toMatch[1].split(',').map(n => n.trim()).filter(n => n) : []
         
-        if (targetName === "所有人" || targetName === "all") {
-          // @所有人 - 发送给所有成员
-          for (const m of allMembers) {
-            if (m.id !== member.id) {
-              console.log(`Triggering mentioned agent: ${m.id}`)
-              sendToAgent(m.id, replayContent, projectPath, member).catch(console.error)
+        console.log(`Found replay: master=${isMaster}, to=${targetNames.join(',')}`)
+        
+        if (isMaster) {
+          console.log(`Replay to master (user):`)
+          console.log(replayContent)
+        }
+        
+        if (targetNames.length > 0) {
+          console.log(`Target members: ${targetNames.join(', ')}`)
+          for (const name of targetNames) {
+            const mentionedMember = allMembers.find(m => m.displayName === name && m.id !== member.id)
+            if (mentionedMember) {
+              console.log(`Triggering agent: ${mentionedMember.displayName} (${mentionedMember.id})`)
+              sendToAgent(mentionedMember.id, replayContent, projectPath, member).catch(console.error)
+            } else {
+              console.log(`Member not found: ${name}, all members: ${allMembers.map(m => m.displayName).join(', ')}`)
             }
-          }
-        } else {
-          // 发送给特定成员
-          const mentionedMember = allMembers.find(m => m.displayName === targetName && m.id !== member.id)
-          if (mentionedMember) {
-            console.log(`Triggering mentioned agent: ${mentionedMember.id}`)
-            sendToAgent(mentionedMember.id, replayContent, projectPath, member).catch(console.error)
           }
         }
       }

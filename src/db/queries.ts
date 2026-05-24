@@ -174,7 +174,7 @@ export function clearGroupMessages(db: Database.Database, groupId: string): void
 export function clearGroupSessions(db: Database.Database, groupId: string): void {
   db.prepare(`
     UPDATE group_members 
-    SET session_id = NULL, session_initialized = 0, status = 'idle'
+    SET session_initialized = 0, status = 'idle'
     WHERE group_id = ?
   `).run(groupId)
 }

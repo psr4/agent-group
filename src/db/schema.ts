@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS groups (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   project_path TEXT NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 
 CREATE TABLE IF NOT EXISTS group_members (
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS group_members (
   role_prompt TEXT,
   model TEXT,
   bubble_color TEXT DEFAULT '#0096ff',
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
   FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
 );
 
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS messages (
   content TEXT NOT NULL,
   mentions TEXT,
   status TEXT NOT NULL DEFAULT 'completed',
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
   FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
 );
 

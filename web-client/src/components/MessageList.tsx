@@ -15,15 +15,26 @@ function escapeHtml(str: string): string {
 }
 
 function formatReplayTags(content: string): string {
-  // 将 <replay master="true">content</replay> 转换为 @你 : content
-  let result = content.replace(/<replay\s+master="true">([\s\S]*?)<\/replay>/g, (_, replayContent) => {
-    return `@你 :\n${replayContent.trim()}`
+  // 匹配所有 <replay> 标签，支持任意属性顺序
+  // 格式: <replay ...>content</replay>
+  let result = content.replace(/<replay\s+([^>]*)>([\s\S]*?)<\/replay>/g, (fullMatch, attrs, replayContent) => {
+    // 解析属性
+    const toMatch = attrs.match(/to="([^"]+)"/)
+    const isMaster = attrs.includes('master="true"')
+    const targetNames = toMatch ? toMatch[1] : ''
+    
+    if (isMaster && targetNames) {
+      return `@你 和 @${targetNames} :\n${replayContent.trim()}`
+    } else if (isMaster) {
+      return `@你 :\n${replayContent.trim()}`
+    } else if (targetNames) {
+      return `@${targetNames} :\n${replayContent.trim()}`
+    }
+    return fullMatch
   })
   
-  // 将 <replay to="xxx">content</replay> 转换为 @xxx : content
-  result = result.replace(/<replay\s+to="([^"]+)">([\s\S]*?)<\/replay>/g, (_, targetName, replayContent) => {
-    return `@${targetName} :\n${replayContent.trim()}`
-  })
+  // 最后转义 HTML
+  result = escapeHtml(result)
   
   return result
 }

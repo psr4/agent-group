@@ -4,7 +4,9 @@ export interface GlobalEvent {
     properties?: {
       sessionID?: string
       part?: {
+        id?: string
         sessionID?: string
+        messageID?: string
         type?: string
         text?: string
       }
@@ -42,4 +44,8 @@ export function getSessionError(event: GlobalEvent): string | undefined {
 
 export function getMessageText(event: GlobalEvent): string | undefined {
   return event.payload?.properties?.part?.text
+}
+
+export function getMessageId(event: GlobalEvent): string | undefined {
+  return event.payload?.properties?.part?.messageID
 }
